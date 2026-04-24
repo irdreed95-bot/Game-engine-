@@ -10,72 +10,60 @@ namespace USRP.Server
     {
         static async Task Main(string[] args)
         {
+            Console.WriteLine("=====================================");
+            Console.WriteLine("UNITED STATE | RP - Multiplayer Server");
+            Console.WriteLine("=====================================");
+            Console.WriteLine();
+
+            // Configuration
+            const string DB_HOST = "localhost";
+            const int DB_PORT = 5432;
+            const string DB_NAME = "usrp_game";
+            const string DB_USER = "postgres";
+            const string DB_PASSWORD = "password"; // Change this!
+            const int TCP_PORT = 9000;
+            const int UDP_PORT = 9001;
+            const int MAX_PLAYERS = 500;
+
             try
             {
-                Console.WriteLine("=====================================");
-                Console.WriteLine("UNITED STATE | RP - Multiplayer Server");
-                Console.WriteLine("=====================================\n");
+                // Initialize database
+                ServerLogger.Info("Initializing database...");
+                var db = new DatabaseHandler(DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD);
+                bool dbReady = await db.InitializeAsync();
 
-                // Database Configuration
-                const string dbHost = "localhost";
-                const int dbPort = 5432;
-                const string dbName = "usrp_game";
-                const string dbUser = "postgres";
-                const string dbPassword = "password"; // Change this!
+                if (!dbReady)
+                {
+                    ServerLogger.Critical("Failed to initialize database. Exiting.");
+                    return;
+                }
 
-                // Server Configuration
-                const int tcpPort = 9000;
-                const int udpPort = 9001;
-                const int maxPlayers = 500;
+                // Start network server
+                ServerLogger.Info("Starting network server...");
+                var server = new NetworkServer(TCP_PORT, UDP_PORT, MAX_PLAYERS, db);
+                await server.StartAsync();
 
-                // Initialize database connection
-                ServerLogger.Info("Main", "Initializing database...");
-                var database = new DatabaseHandler(dbHost, dbPort, dbName, dbUser, dbPassword);
-                await database.InitializeAsync();
+                // Keep server running
+                ServerLogger.Info("Server is running. Press CTRL+C to stop.");
+                Console.CancelKeyPress += async (s, e) =>
+                {
+                    e.Cancel = true;
+                    await server.StopAsync();
+                    Environment.Exit(0);
+                };
 
-                // Initialize network server
-                ServerLogger.Info("Main", "Starting network server...");
-                var networkServer = new NetworkServer(tcpPort, udpPort, maxPlayers, database);
-                await networkServer.StartAsync();
-
-                ServerLogger.Info("Main", $"Server running on TCP:{tcpPort} UDP:{udpPort}");
-                ServerLogger.Info("Main", $"Maximum players: {maxPlayers}");
-
-                // Monitor server
-                var monitoringTask = MonitorServerAsync(networkServer);
-                await monitoringTask;
-
-                // Shutdown
-                await networkServer.StopAsync();
-                await database.CloseAsync();
-            }
-            catch (Exception ex)
-            {
-                ServerLogger.Critical("Main", "Fatal error", ex);
-                Environment.Exit(1);
-            }
-        }
-
-        static async Task MonitorServerAsync(NetworkServer server)
-        {
-            try
-            {
                 while (true)
                 {
-                    await Task.Delay(30000); // Every 30 seconds
+                    await Task.Delay(1000);
 
-                    var stats = server.GetServerStats();
-                    ServerLogger.Info("Monitor", 
-                        $"Clients: {stats.TotalConnectedClients}/{stats.MaxPlayers} | " +
-                        $"Authenticated: {stats.AuthenticatedPlayers} | " +
-                        $"Msgs Sent: {stats.TotalMessagesSent} | " +
-                        $"Msgs Recv: {stats.TotalMessagesReceived} | " +
-                        $"Uptime: {stats.UptimeSeconds}s");
+                    // Optionally print server stats periodically
+                    // var stats = server.GetServerStats();
+                    // ServerLogger.Info($"Connected: {stats[\"TotalConnectedClients\"]}/{stats[\"MaxPlayers\"]}");
                 }
             }
             catch (Exception ex)
             {
-                ServerLogger.Error("Monitor", "Error in monitoring task", ex);
+                ServerLogger.Critical($"Fatal error: {ex.Message}");
             }
         }
     }

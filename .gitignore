@@ -1,0 +1,33 @@
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+*.o
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+
+# .NET
+bin/
+obj/
+.vs/
+.vscode/
+*.csproj.user
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary files
+*.tmp
+*.temp
+*~
+.DS_Store
+
+# Environment variables
+.env
+.env.local
